@@ -1,0 +1,75 @@
+const SHEET_NAME = "Sheet1";
+
+// Add new queue entry
+function doPost(e){
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const data = JSON.parse(e.postData.contents);
+
+  // Device restriction
+  const deviceIDs = sheet.getRange(2,6,sheet.getLastRow()-1).getValues().flat();
+  if(deviceIDs.includes(data.deviceID)){
+    return ContentService.createTextOutput(JSON.stringify({status:"error", message:"Device already used"}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Queue number
+  const queueNumber = sheet.getLastRow();
+
+  sheet.appendRow([
+    queueNumber,
+    data.name,
+    data.phone,
+    data.remark || "",
+    new Date(),
+    data.deviceID,
+    "waiting",
+    "",
+    data.latitude,
+    data.longitude
+  ]);
+
+  return ContentService.createTextOutput(JSON.stringify({status:"success", queueNumber}))
+      .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Fetch all queue entries (for admin / user)
+function doGet(e){
+  if(e.parameter.action === "getQueue"){
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    const data = sheet.getRange(2,1,sheet.getLastRow()-1,sheet.getLastColumn()).getValues();
+    const queue = data.map(row=>({
+      queueNumber: row[0],
+      name: row[1],
+      phone: row[2],
+      remark: row[3],
+      timestamp: row[4],
+      deviceID: row[5],
+      status: row[6],
+      description: row[7],
+      latitude: row[8],
+      longitude: row[9]
+    }));
+    return ContentService.createTextOutput(JSON.stringify(queue))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  return ContentService.createTextOutput("Queue System Backend Running");
+}
+
+// Admin update functions
+function updateStatus(queueNumber, status){
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const data = sheet.getRange(2,1,sheet.getLastRow()-1,1).getValues().flat();
+  const rowIndex = data.indexOf(queueNumber);
+  if(rowIndex>=0){
+    sheet.getRange(rowIndex+2,7).setValue(status);
+  }
+}
+
+function updateDescription(queueNumber, description){
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const data = sheet.getRange(2,1,sheet.getLastRow()-1,1).getValues().flat();
+  const rowIndex = data.indexOf(queueNumber);
+  if(rowIndex>=0){
+    sheet.getRange(rowIndex+2,8).setValue(description);
+  }
+}
